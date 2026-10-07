@@ -71,3 +71,18 @@ def test_full_page_fits_telegram_limit():
         "venue": base.venue.model_copy(update={"text": "М" * 300}),
     })
     assert len(render_page([big] * 5, title="Эта неделя").text) < 4096
+
+
+def test_dangerous_bidi_characters_are_stripped():
+    spoofed = EVENTS[1].model_copy(update={"title": "Normal \u202eReverse\x00Text"})
+    text = render_event(spoofed)
+    assert "\u202e" not in text
+    assert "\x00" not in text
+    assert "Normal ReverseText" in text
+
+
+def test_unsafe_url_scheme_falls_back_to_safe():
+    malicious = EVENTS[1].model_copy(update={"url": "javascript:alert(1)"})
+    text = render_event(malicious)
+    assert 'href="https://www.ashgabatevents.com"' in text
+    assert "javascript" not in text

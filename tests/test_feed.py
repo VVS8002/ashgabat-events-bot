@@ -103,3 +103,18 @@ def test_cache_then_stale_fallback_then_unavailable():
             await fc.get_events(when="tomorrow")
 
     asyncio.run(run())
+
+
+def test_feed_rejects_insecure_scheme():
+    with pytest.raises(ValueError):
+        FeedClient("file:///etc/passwd")
+
+
+def test_feed_rejects_payload_too_large():
+    huge_json = b'{"events": []}' + b" " * (6 * 1024 * 1024)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=huge_json)
+
+    with pytest.raises(FeedUnavailable):
+        asyncio.run(make_client(handler).get_events(when="today"))

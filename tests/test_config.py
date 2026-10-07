@@ -29,3 +29,18 @@ def test_unknown_timezone_fails_at_startup():
 def test_bad_digest_time_fails_at_startup():
     with pytest.raises(ValidationError):
         make(digest_time="25:99")
+
+
+def test_insecure_feed_url_rejected():
+    with pytest.raises(ValidationError):
+        make(feed_url="ftp://example.com/events")
+
+
+def test_empty_db_path_rejected():
+    with pytest.raises(ValidationError):
+        make(db_path="   ")
+
+
+def test_invalid_proxy_scheme_rejected():
+    with pytest.raises(ValidationError):
+        make(proxy_url="gopher://proxy.lan:8080")

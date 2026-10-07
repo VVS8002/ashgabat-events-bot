@@ -8,6 +8,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 def _parse_when(v):
     """'2026-10-01' -> date (время не указано); '2026-10-12T16:00:00+05:00' -> datetime."""
     if isinstance(v, str):
+        v = v.strip()
         return date.fromisoformat(v) if len(v) == 10 else datetime.fromisoformat(v)
     return v
 
@@ -59,6 +60,6 @@ class Event(BaseModel):
     def _timed_values_must_have_offset(self) -> "Event":
         # datetime проверяем первым: он подкласс date
         for v in (self.start, self.end):
-            if isinstance(v, datetime) and v.tzinfo is None:
+            if isinstance(v, datetime) and (v.tzinfo is None or v.utcoffset() is None):
                 raise ValueError("datetime must include a UTC offset")
         return self

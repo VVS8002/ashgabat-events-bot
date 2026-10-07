@@ -13,6 +13,12 @@ from .models import Event
 log = logging.getLogger(__name__)
 
 WHEN_VALUES = {"today", "tomorrow", "weekend", "week", "nextweek"}
+MAX_RESPONSE_BYTES = 5 * 1024 * 1024  # 5 МБ макс. размер одного ответа от API
+MAX_CACHE_ENTRIES = 256  # ограничение размера кэша для защиты памяти
+DEFAULT_HEADERS = {
+    "User-Agent": "AshgabatEventsBot/1.0 (+https://www.ashgabatevents.com)",
+    "Accept": "application/json",
+}
 
 
 class FeedUnavailable(Exception):
@@ -35,7 +41,8 @@ def parse_page(raw) -> tuple[list[Event], str | None]:
             events.append(Event.model_validate(item))
         except ValidationError as exc:
             ident = item.get("id") if isinstance(item, dict) else None
-            log.warning("skip invalid event id=%s: %s", ident, exc.errors()[0]["msg"])
+            msg = exc.errors()[0].get("msg", str(exc)) if exc.errors() else str(exc)
+            log.warning("skip invalid event id=%s: %s", ident, msg)
     return events, raw.get("next_cursor")
 
 
@@ -64,11 +71,23 @@ class FeedClient:
         http: httpx.AsyncClient | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise ValueError(f"invalid feed url scheme: {url!r}")
         self._url, self._lang, self._limit = url, lang, limit
         self._max_pages, self._ttl, self._clock = max_pages, ttl, clock
-        self._http = http or httpx.AsyncClient(timeout=15.0, follow_redirects=True)
+        self._http = http or httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            headers=DEFAULT_HEADERS,
+        )
         self._cache: dict[tuple, tuple[list[Event], float]] = {}
         self._locks: dict[tuple, asyncio.Lock] = {}
+
+    async def __aenter__(self) -> "FeedClient":
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        await self.aclose()
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -88,11 +107,14 @@ class FeedClient:
                     log.warning("feed refresh failed (%s); serving stale cache", exc)
                     return FeedResult(cached[0], stale=True)
                 raise FeedUnavailable(str(exc)) from exc
+            if len(self._cache) >= MAX_CACHE_ENTRIES and key not in self._cache:
+                oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
+                self._cache.pop(oldest_key, None)
+                self._locks.pop(oldest_key, None)
             self._cache[key] = (events, self._clock())
             return FeedResult(events, stale=False)
 
     async def _fetch_all(self, when: str | None, category: str | None) -> list[Event]:
-                
         params: dict[str, str | int] = {}
         if when:
             params["when"] = when
@@ -103,14 +125,21 @@ class FeedClient:
 
         events: list[Event] = []
         cursor: str | None = None
+        seen_cursors: set[str] = set()
         for _ in range(self._max_pages):
             query = {**params, **({"cursor": cursor} if cursor else {})}
             resp = await self._http.get(self._url, params=query)
             resp.raise_for_status()
+            if len(resp.content) > MAX_RESPONSE_BYTES:
+                raise ValueError("feed response payload exceeded maximum allowed size")
             page, cursor = parse_page(resp.json())
             events.extend(page)
             if not cursor:
                 break
+            if cursor in seen_cursors:
+                log.warning("feed pagination loop detected for cursor=%s; stopping pagination", cursor)
+                break
+            seen_cursors.add(cursor)
         else:
             log.warning("feed has more pages than max_pages=%s; list truncated", self._max_pages)
         return first_of_series(events)

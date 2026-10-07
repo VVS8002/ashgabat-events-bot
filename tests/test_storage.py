@@ -1,9 +1,22 @@
 import asyncio
 from datetime import date
 
+import pytest
+
 from bot.storage import Storage
 
 D1, D2 = date(2026, 10, 7), date(2026, 10, 8)
+
+
+def test_storage_rejects_invalid_chat_id():
+    async def run():
+        async with Storage(":memory:") as s:
+            with pytest.raises(TypeError):
+                await s.subscribe("not_an_int")  # type: ignore
+            with pytest.raises(ValueError):
+                await s.subscribe(10**25)  # exceeds 64-bit
+
+    asyncio.run(run())
 
 
 def test_subscribe_is_idempotent():

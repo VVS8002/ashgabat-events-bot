@@ -36,11 +36,17 @@ def parse_scope(scope: str) -> tuple[str | None, str | None] | None:
 
 def encode_page(scope: str, page: int) -> str:
     data = f"l:{scope}:{page}"
-    assert len(data.encode()) <= MAX_CALLBACK_BYTES, data
+    if len(data.encode()) > MAX_CALLBACK_BYTES:
+        raise ValueError(f"callback_data exceeds {MAX_CALLBACK_BYTES} bytes: {data}")
     return data
 
 
+MAX_PAGE_NUMBER = 10_000
+
+
 def decode_page(data: str) -> tuple[str, int] | None:
+    if not isinstance(data, str):
+        return None
     parts = data.split(":")
     if len(parts) != 3 or parts[0] != "l" or parse_scope(parts[1]) is None:
         return None
@@ -48,7 +54,7 @@ def decode_page(data: str) -> tuple[str, int] | None:
         page = int(parts[2])
     except ValueError:
         return None
-    return (parts[1], page) if page >= 0 else None
+    return (parts[1], page) if 0 <= page <= MAX_PAGE_NUMBER else None
 
 
 def _btn(text: str, data: str) -> InlineKeyboardButton:

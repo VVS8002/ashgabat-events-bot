@@ -23,7 +23,7 @@ def test_page_callback_roundtrip():
 
 def test_decode_rejects_garbage():
     for bad in ("", "l", "l:w.today", "l:w.today:abc", "l:w.today:-1", "x:w.today:1", "l:w.yesterday:0",
-                "l:c.UPPER:0", "l:c.a b:0", "l:w.today:1:2"):
+                "l:c.UPPER:0", "l:c.a b:0", "l:w.today:1:2", "l:w.today:999999", None, 123):
         assert decode_page(bad) is None, bad
 
 
