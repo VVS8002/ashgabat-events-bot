@@ -1,0 +1,244 @@
+{
+    "api_version": 1,
+    "lang": "ru",
+    "time_zone": "Asia/Ashgabat",
+    "window": {
+        "from": "2026-10-06",
+        "to": null,
+        "preset": null
+    },
+    "categories": [],
+    "limit": 50,
+    "count": 6,
+    "next_cursor": null,
+    "events": [
+        {
+            "id": "a029bb4f-bdae-4123-b1ec-3a465e513eba",
+            "title": "ОКТЯБРЬ в AÝAL",
+            "summary": "Новый месяц — новые встречи, практики, знания и состояния.\nМы подготовили для вас насыщенное расписание мастер-классов и женских практик, чтобы в октябре было больше времени на себя, свои желания и внутреннее состояние.\nВыбирайте то, что откликается именно вам, и бронируйте своё место заранее ❤️",
+            "summary_truncated": false,
+            "start": "2026-10-01",
+            "start_time_known": false,
+            "end": "2026-10-31",
+            "end_time_known": false,
+            "date_text": "чт, 1 окт. 2026 г. - сб, 31 окт. 2026 г.",
+            "time_text": "Время не указано",
+            "venue": {
+                "name": "Ашхабад",
+                "address": null,
+                "text": "Ашхабад"
+            },
+            "category": {
+                "slug": "workshops",
+                "label": "Мастер-классы"
+            },
+            "price": {
+                "kind": "paid_unspecified",
+                "is_free": false,
+                "amount": null,
+                "currency": null,
+                "text": "Платно"
+            },
+            "image_url": "https://www.ashgabatevents.com/sb/storage/v1/object/public/event-images/fbfea46e-4c92-4591-995e-975ca1a33f95/04fbb427-57b2-46f3-b204-35bc2700aab5.webp",
+            "url": "https://www.ashgabatevents.com/ru/events/a029bb4f-bdae-4123-b1ec-3a465e513eba",
+            "organizer": {
+                "name": "Женский клуб \"AYAL\"",
+                "verified": false,
+                "slug": null,
+                "url": null
+            },
+            "series_key": null,
+            "updated_at": "2026-09-28T11:38:41.407Z"
+        },
+        {
+            "id": "387de46a-34ec-4601-a6fd-4e475169205b",
+            "title": "CrossTalk Debate.",
+            "summary": "Every Monday & Thursday 16:00-18:00.\nEntry: 30mnt.",
+            "summary_truncated": false,
+            "start": "2026-10-08T16:00:00+05:00",
+            "start_time_known": true,
+            "end": null,
+            "end_time_known": null,
+            "date_text": "чт, 8 окт. 2026 г.",
+            "time_text": "16:00",
+            "venue": {
+                "name": "Arçabil ş.ý. Milli Kitaphana @K-tap coffee",
+                "address": null,
+                "text": "Arçabil ş.ý. Milli Kitaphana @K-tap coffee"
+            },
+            "category": {
+                "slug": "education",
+                "label": "Образование"
+            },
+            "price": {
+                "kind": "paid",
+                "is_free": false,
+                "amount": 30,
+                "currency": "TMT",
+                "text": "30 TMT"
+            },
+            "image_url": "https://www.ashgabatevents.com/sb/storage/v1/object/public/event-images/ba6d7681-b069-4494-8734-8f919a420b37/fe53bb35-6458-4662-8fc6-e66d344bda5b.webp",
+            "url": "https://www.ashgabatevents.com/ru/events/387de46a-34ec-4601-a6fd-4e475169205b",
+            "organizer": {
+                "name": "@K-TAP_COFFEE",
+                "verified": true,
+                "slug": "k-tap-coffee",
+                "url": "https://www.ashgabatevents.com/ru/organizers/k-tap-coffee"
+            },
+            "series_key": "s_UaaxHJ3lztQvIlQc",
+            "updated_at": "2026-09-24T10:16:51.689Z"
+        },
+        {
+            "id": "333cf392-2421-4379-ac85-b46b012d8645",
+            "title": "Воркшоп для родителей",
+            "summary": "Бесплатная встреча для родителей , учеников 8-12 классов, на которой подробно разберем этапы поступления в Вузы, создание персональных портфолио и выбор профессии.",
+            "summary_truncated": false,
+            "start": "2026-10-09T17:00:00+05:00",
+            "start_time_known": true,
+            "end": "2026-10-09T19:30:00+05:00",
+            "end_time_known": true,
+            "date_text": "пт, 9 окт. 2026 г.",
+            "time_text": "17:00 - 19:30",
+            "venue": {
+                "name": "Центр профориентации Modern",
+                "address": null,
+                "text": "Центр профориентации Modern"
+            },
+            "category": {
+                "slug": "education",
+                "label": "Образование"
+            },
+            "price": {
+                "kind": "free",
+                "is_free": true,
+                "amount": null,
+                "currency": null,
+                "text": "Бесплатно"
+            },
+            "image_url": "https://www.ashgabatevents.com/sb/storage/v1/object/public/event-images/e8816e6e-6c14-46b7-bcb7-23d021c7f395/e1cbffff-5daf-42e1-82d9-faed83ff72ef.webp",
+            "url": "https://www.ashgabatevents.com/ru/events/333cf392-2421-4379-ac85-b46b012d8645",
+            "organizer": {
+                "name": "Центр профориентации Modern",
+                "verified": false,
+                "slug": null,
+                "url": null
+            },
+            "series_key": null,
+            "updated_at": "2026-10-06T09:06:01.028Z"
+        },
+        {
+            "id": "5f79a7ba-b9e2-487f-a707-d52f11756541",
+            "title": "\"Öňe gitmegiňize päsgel berýän endikler\"",
+            "summary": "Günüňiz ýadawlyk, alada we içki dartgynlylyk bilen geçýärmi?\nSözi açyk aýtsak, sizi ýadadýan zat diňe iş däl, öz-özüňize päsgel berýän endikleriňizdir.Bu endikler siziň üstünligiňizi, rahatlygyňyzy we özüňize bolan ynamyňyzy ogurlaýan içki päsgelçiliklerdir. Şu endikleri tanamak, olary dolandyrmak…",
+            "summary_truncated": true,
+            "start": "2026-10-10T14:00:00+05:00",
+            "start_time_known": true,
+            "end": "2026-10-10T16:00:00+05:00",
+            "end_time_known": true,
+            "date_text": "сб, 10 окт. 2026 г.",
+            "time_text": "14:00 - 16:00",
+            "venue": {
+                "name": "Aşgabat",
+                "address": null,
+                "text": "Aşgabat"
+            },
+            "category": {
+                "slug": "community",
+                "label": "Сообщество"
+            },
+            "price": {
+                "kind": "paid",
+                "is_free": false,
+                "amount": 70,
+                "currency": "TMT",
+                "text": "70 TMT"
+            },
+            "image_url": "https://www.ashgabatevents.com/sb/storage/v1/object/public/event-images/68bc82a9-feed-4974-a5af-1bc7f6dcf29c/43a92147-d9bc-4a25-8b24-fe778e2b7176.webp",
+            "url": "https://www.ashgabatevents.com/ru/events/5f79a7ba-b9e2-487f-a707-d52f11756541",
+            "organizer": {
+                "name": "\"Zenan Yoly\" zenanlar jemgyýeti",
+                "verified": false,
+                "slug": null,
+                "url": null
+            },
+            "series_key": null,
+            "updated_at": "2026-09-30T06:48:32.535Z"
+        },
+        {
+            "id": "ae9817ed-bbf3-4a94-93ea-2ea443c7d973",
+            "title": "🧑‍🎨\"Art Verse\" и \"Open Hub\" в Bilelik Hub✨",
+            "summary": "11 октября Bilelik Hub приглашает вас на два события в одном!\n\"ArtVerse\" — это ваш пропуск в мир искусства и самовыражения: творческие студии, книжные лавки и вечерние развлечения на любой вкус.\nВ \"Open Hub\" вы сможете почувствовать себя как дома в нашем креативном пространстве.Узнайте о наших…",
+            "summary_truncated": true,
+            "start": "2026-10-11T09:00:00+05:00",
+            "start_time_known": true,
+            "end": "2026-10-11T20:00:00+05:00",
+            "end_time_known": true,
+            "date_text": "вс, 11 окт. 2026 г.",
+            "time_text": "9:00 - 20:00",
+            "venue": {
+                "name": "Bilelik Hub",
+                "address": "A.Seýdi köç, 70/1, \"Aşgabat\" DSM, Blok \"C\", 1-nji gat",
+                "text": "Bilelik Hub, A.Seýdi köç, 70/1, \"Aşgabat\" DSM, Blok \"C\", 1-nji gat"
+            },
+            "category": {
+                "slug": "education",
+                "label": "Образование"
+            },
+            "price": {
+                "kind": "free",
+                "is_free": true,
+                "amount": null,
+                "currency": null,
+                "text": "Бесплатно"
+            },
+            "image_url": "https://www.ashgabatevents.com/sb/storage/v1/object/public/event-images/72d179bd-fc70-4a12-8242-672f80ca52eb/0fe8bba6-2e15-432f-9abc-1c7344ee9277.webp",
+            "url": "https://www.ashgabatevents.com/ru/events/ae9817ed-bbf3-4a94-93ea-2ea443c7d973",
+            "organizer": {
+                "name": "Bilelik Hub",
+                "verified": false,
+                "slug": null,
+                "url": null
+            },
+            "series_key": null,
+            "updated_at": "2026-10-05T23:46:45.871Z"
+        },
+        {
+            "id": "b8e9bd98-2eb4-4d74-abf1-ed5a9aef8190",
+            "title": "CrossTalk Debate.",
+            "summary": "Every Monday & Thursday 16:00-18:00.\nEntry: 30mnt.",
+            "summary_truncated": false,
+            "start": "2026-10-12T16:00:00+05:00",
+            "start_time_known": true,
+            "end": null,
+            "end_time_known": null,
+            "date_text": "пн, 12 окт. 2026 г.",
+            "time_text": "16:00",
+            "venue": {
+                "name": "Arçabil ş.ý. Milli Kitaphana @K-tap coffee",
+                "address": null,
+                "text": "Arçabil ş.ý. Milli Kitaphana @K-tap coffee"
+            },
+            "category": {
+                "slug": "education",
+                "label": "Образование"
+            },
+            "price": {
+                "kind": "paid",
+                "is_free": false,
+                "amount": 30,
+                "currency": "TMT",
+                "text": "30 TMT"
+            },
+            "image_url": "https://www.ashgabatevents.com/sb/storage/v1/object/public/event-images/ba6d7681-b069-4494-8734-8f919a420b37/fe53bb35-6458-4662-8fc6-e66d344bda5b.webp",
+            "url": "https://www.ashgabatevents.com/ru/events/b8e9bd98-2eb4-4d74-abf1-ed5a9aef8190",
+            "organizer": {
+                "name": "@K-TAP_COFFEE",
+                "verified": true,
+                "slug": "k-tap-coffee",
+                "url": "https://www.ashgabatevents.com/ru/organizers/k-tap-coffee"
+            },
+            "series_key": "s_UaaxHJ3lztQvIlQc",
+            "updated_at": "2026-09-24T10:16:51.689Z"
+        }
+    ]
+}
