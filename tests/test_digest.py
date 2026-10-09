@@ -78,3 +78,54 @@ def test_site_down_sends_nothing_and_keeps_subscribers_due():
     bot = FakeBot()
     first, _, due, _ = asyncio.run(run(bot, FakeFeed(fail=True)))
     assert first == 0 and bot.sent == [] and sorted(due) == [1, 2, 3]  # при следующем запуске попробуем снова
+
+
+# ---- окно рассылки: функцию можно вызывать каждые 10 минут ----
+from datetime import time, timedelta  # noqa: E402
+
+AT = time(9, 0)
+
+
+def at(hh, mm):
+    return datetime(2026, 10, 8, hh, mm, tzinfo=TZ)
+
+
+async def run_at(bot, feed, moments):
+    async with Storage(":memory:") as s:
+        await s.subscribe(1)
+        results = [await send_digest(bot, feed, s, TZ, now=m, pause=0, digest_at=AT) for m in moments]
+        return results, await s.due_for_digest(NOW.date())
+
+
+def test_nothing_before_digest_time_and_after_window():
+    bot = FakeBot()
+    results, due = asyncio.run(run_at(bot, FakeFeed(), [at(8, 59), at(12, 0), at(15, 30)]))
+    assert results == [0, 0, 0] and bot.sent == [] and due == [1]
+
+
+def test_sent_once_inside_window_despite_frequent_checks():
+    bot = FakeBot()
+    results, due = asyncio.run(run_at(bot, FakeFeed(), [at(9, 0), at(9, 10), at(9, 20), at(11, 50)]))
+    assert results == [1, 0, 0, 0] and bot.sent == [1] and due == []
+
+
+def test_site_down_at_nine_is_retried_ten_minutes_later():
+    class FlakyFeed(FakeFeed):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        async def get_events(self, *, when=None, category=None):
+            self.calls += 1
+            self.fail = self.calls == 1  # первый запрос неудачный
+            return await super().get_events(when=when, category=category)
+
+    bot = FakeBot()
+    results, due = asyncio.run(run_at(bot, FlakyFeed(), [at(9, 0), at(9, 10)]))
+    assert results == [0, 1] and bot.sent == [1] and due == []
+
+
+def test_catch_up_after_restart_inside_window():
+    bot = FakeBot()
+    results, _ = asyncio.run(run_at(bot, FakeFeed(), [at(9, 42)]))  # бот включили в 9:42
+    assert results == [1]

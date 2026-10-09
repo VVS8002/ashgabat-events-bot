@@ -1,13 +1,5 @@
-"""Запуск Telegram бота из корневого каталога проекта."""
-import asyncio
-import sys
-
-from bot.main import main
+"""Запуск из корня проекта: python main.py (то же, что python -m bot.main)."""
+from bot.main import run
 
 if __name__ == "__main__":
-    if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        pass
+    run()
