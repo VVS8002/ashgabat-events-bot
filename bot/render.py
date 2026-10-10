@@ -3,6 +3,7 @@ import html
 import re
 from dataclasses import dataclass
 from math import ceil
+from urllib.parse import urlsplit, urlunsplit
 
 from .models import Event
 
@@ -10,13 +11,18 @@ PER_PAGE = 5
 MAX_TITLE = 120
 MAX_VENUE = 100
 MAX_PRICE = 60
+MAX_DATE_LINE = 80
+MAX_RAW_URL = 2000  # дальше даже не парсим: явно мусор или атака
 
-# Опасные скрытые символы и символы изменения направления текста (BiDi override),
-# используемые для спуфинга текста и ссылок
-DANGEROUS_CHARS = re.compile(r"[\u202a-\u202e\u2066-\u2069\x00-\x08\x0b\x0c\x0e-\x1f]")
+# Опасные скрытые символы, символы изменения направления текста (BiDi override) и невидимые
+# символы-разделители, используемые для спуфинга текста и ссылок. U+200D (ZWJ) не трогаем:
+# он склеивает составные эмодзи (например, в названиях событий).
+DANGEROUS_CHARS = re.compile(
+    r"[\u202a-\u202e\u2066-\u2069\x00-\x08\x0b\x0c\x0e-\x1f\u200b\u2060\ufeff]"
+)
 
 EMPTY_TEXT = "Пока ничего не нашлось. Попробуйте другой период или категорию."
-STALE_NOTE = "⚠️ Данные могли устареть: сайт сейчас недоступен."
+STALE_NOTE = "⚠ Данные могли устареть: сайт сейчас недоступен."
 
 WHEN_LABELS = {
     "today": "Сегодня",
@@ -25,6 +31,10 @@ WHEN_LABELS = {
     "week": "Эта неделя",
     "nextweek": "Следующая неделя",
 }
+
+# Используется, только если вызывающий код не передал site_origin явно (production-код в
+# service.py и digest.py всегда передаёт его из FeedClient.origin, т.е. из настоящего FEED_URL).
+DEFAULT_SITE_ORIGIN = "https://www.ashgabatevents.com"
 
 
 def _esc(text: str) -> str:
@@ -38,13 +48,35 @@ def _cut(text: str, limit: int) -> str:
 
 
 def _when_line(e: Event) -> str:
-    # Время «не указано» пользователю не нужно: показываем только дату
+    # date_text/time_text приходят с сайта как есть: чистим и ограничиваем длину так же,
+    # как остальные текстовые поля, а не доверяем им как «служебным» строкам.
+    date_part = _cut(e.date_text, MAX_DATE_LINE)
     if e.start_time_known and e.time_text:
-        return f"{e.date_text}, {e.time_text}"
-    return e.date_text
+        return f"{date_part}, {_cut(e.time_text, 30)}"
+    return date_part
 
 
-def render_event(e: Event) -> str:
+def _safe_url(raw_url: str, site_origin: str) -> str:
+    """Ссылка «Подробнее на сайте» ведёт на страницу события у заказчика — и больше никуда.
+    Пропускаем только https-ссылки на тот же хост, что и site_origin; относительный путь
+    («/ru/events/...») достраиваем до site_origin. Всё остальное (javascript:, другой домен,
+    http без «s», мусор) заменяется ссылкой на главную сайта."""
+    raw_url = raw_url.strip()[:MAX_RAW_URL]
+    if raw_url.startswith("/"):
+        raw_url = site_origin.rstrip("/") + raw_url
+
+    try:
+        parts = urlsplit(raw_url)
+        origin_parts = urlsplit(site_origin)
+    except ValueError:
+        return site_origin
+
+    if parts.scheme == "https" and parts.netloc == origin_parts.netloc and parts.netloc:
+        return urlunsplit(parts)
+    return site_origin
+
+
+def render_event(e: Event, *, site_origin: str = DEFAULT_SITE_ORIGIN) -> str:
     lines = [f"<b>{_esc(_cut(e.title, MAX_TITLE))}</b>", f"🗓 {_esc(_when_line(e))}"]
 
     venue = (e.venue.text or e.venue.name) if e.venue else None
@@ -54,12 +86,7 @@ def render_event(e: Event) -> str:
     price = e.price.text if e.price and e.price.text and e.price.text.strip() else "Цена не указана"
     lines.append(f"💰 {_esc(_cut(price, MAX_PRICE))}")
 
-    url = e.url.strip()
-    if url.startswith("/"):
-        url = f"https://www.ashgabatevents.com{url}"
-    elif not url.startswith(("http://", "https://")):
-        url = "https://www.ashgabatevents.com"
-    url = url[:1024]
+    url = _safe_url(e.url, site_origin)
     lines.append(f'<a href="{html.escape(url, quote=True)}">Подробнее на сайте</a>')
     return "\n".join(lines)
 
@@ -86,6 +113,7 @@ def render_page(
     page: int = 0,
     per_page: int = PER_PAGE,
     stale: bool = False,
+    site_origin: str = DEFAULT_SITE_ORIGIN,
 ) -> Page:
     head = f"<b>{_esc(title)}</b>"
     if not events:
@@ -98,5 +126,5 @@ def render_page(
     chunk = events[page * per_page : (page + 1) * per_page]
 
     head += f"\nНайдено: {len(events)}" + (f" · стр. {page + 1}/{pages}" if pages > 1 else "")
-    parts = [head] + ([STALE_NOTE] if stale else []) + [render_event(e) for e in chunk]
+    parts = [head] + ([STALE_NOTE] if stale else []) + [render_event(e, site_origin=site_origin) for e in chunk]
     return Page("\n\n".join(parts), page, pages)

@@ -6,7 +6,7 @@ from datetime import date
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from .feed import FeedClient, FeedUnavailable
-from .keyboards import MENU, SLUG_RE, categories_kb, menu_kb, pager_kb, parse_scope
+from .keyboards import MENU, categories_kb, menu_kb, pager_kb, parse_scope
 from .ordering import collect_categories, sort_for_display
 from .render import WHEN_LABELS, render_page
 
@@ -45,10 +45,10 @@ async def list_view(feed: FeedClient, scope: str, page: int, today: date) -> Vie
 
     events = sort_for_display(result.events, today)
     if when:
-        title = WHEN_LABELS.get(when, "События")
+        title = WHEN_LABELS[when]
     else:
-        title = next((e.category.label for e in events if e.category.slug == category), events[0].category.label if events else "Категория")
-    rendered = render_page(events, title=title, page=page, stale=result.stale)
+        title = events[0].category.label if events else "Категория"
+    rendered = render_page(events, title=title, page=page, stale=result.stale, site_origin=feed.origin)
     return View(rendered.text, pager_kb(scope, rendered))
 
 
@@ -59,6 +59,6 @@ async def categories_view(feed: FeedClient) -> View:
         log.warning("feed unavailable: %s", exc)
         return View(ERROR_TEXT, _menu_only_kb())
     categories = collect_categories(result.events)
-    if not categories or not any(SLUG_RE.match(c.slug) for c in categories):
+    if not categories:
         return View(NO_CATEGORIES_TEXT, _menu_only_kb())
     return View(PICK_CATEGORY_TEXT, categories_kb(categories))

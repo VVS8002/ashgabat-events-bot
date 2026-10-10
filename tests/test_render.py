@@ -31,8 +31,48 @@ def test_html_in_title_is_escaped():
 
 
 def test_url_quote_is_escaped():
-    e = EVENTS[1].model_copy(update={"url": 'https://example.org/x"y'})
-    assert 'href="https://example.org/x&quot;y"' in render_event(e)
+    # На собственном домене сайта (DEFAULT_SITE_ORIGIN) кавычка в пути должна остаться
+    # и корректно экранироваться — это НЕ про подмену домена, а про HTML-экранирование.
+    e = EVENTS[1].model_copy(update={"url": 'https://www.ashgabatevents.com/x"y'})
+    assert 'href="https://www.ashgabatevents.com/x&quot;y"' in render_event(e)
+
+
+def test_url_on_foreign_domain_is_replaced_with_site_origin():
+    e = EVENTS[1].model_copy(update={"url": "https://evil.example/phish"})
+    assert 'href="https://www.ashgabatevents.com"' in render_event(e)
+    assert "evil.example" not in render_event(e)
+
+
+def test_url_scheme_other_than_https_is_rejected():
+    for bad in ("http://www.ashgabatevents.com/x", 'javascript:alert(1)', "tg://resolve?x=1", "data:text/html,x"):
+        e = EVENTS[1].model_copy(update={"url": bad})
+        assert render_event(e).count('href="https://www.ashgabatevents.com"') == 1, bad
+
+
+def test_relative_url_is_resolved_against_site_origin():
+    e = EVENTS[1].model_copy(update={"url": "/ru/events/abc"})
+    assert 'href="https://www.ashgabatevents.com/ru/events/abc"' in render_event(e)
+
+
+def test_custom_site_origin_is_respected():
+    e = EVENTS[1].model_copy(update={"url": "https://staging.ashgabatevents.com/ru/events/abc"})
+    default = render_event(e)
+    custom = render_event(e, site_origin="https://staging.ashgabatevents.com")
+    assert 'href="https://www.ashgabatevents.com"' in default  # другой хост -> по умолчанию отклонён
+    assert 'href="https://staging.ashgabatevents.com/ru/events/abc"' in custom  # а с явным origin принят
+
+
+def test_date_and_time_text_are_cleaned_and_bounded():
+    e = EVENTS[1].model_copy(update={"date_text": "x" * 300, "time_text": "16:00"})
+    text = render_event(e)
+    assert "…" in text and ("x" * 300) not in text
+
+
+def test_bidi_and_zero_width_chars_are_stripped_but_zwj_kept():
+    # U+202E (RLO) и U+200B (zero-width space) — убираем; U+200D (ZWJ, склейка эмодзи) — оставляем
+    e = EVENTS[1].model_copy(update={"title": "A‮B​C‍D"})
+    assert "‮" not in render_event(e) and "​" not in render_event(e)
+    assert "‍" in render_event(e)
 
 
 def test_missing_price_and_venue():
@@ -71,18 +111,3 @@ def test_full_page_fits_telegram_limit():
         "venue": base.venue.model_copy(update={"text": "М" * 300}),
     })
     assert len(render_page([big] * 5, title="Эта неделя").text) < 4096
-
-
-def test_dangerous_bidi_characters_are_stripped():
-    spoofed = EVENTS[1].model_copy(update={"title": "Normal \u202eReverse\x00Text"})
-    text = render_event(spoofed)
-    assert "\u202e" not in text
-    assert "\x00" not in text
-    assert "Normal ReverseText" in text
-
-
-def test_unsafe_url_scheme_falls_back_to_safe():
-    malicious = EVENTS[1].model_copy(update={"url": "javascript:alert(1)"})
-    text = render_event(malicious)
-    assert 'href="https://www.ashgabatevents.com"' in text
-    assert "javascript" not in text

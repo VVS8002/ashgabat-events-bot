@@ -37,7 +37,7 @@ def parse_scope(scope: str) -> tuple[str | None, str | None] | None:
 def encode_page(scope: str, page: int) -> str:
     data = f"l:{scope}:{page}"
     if len(data.encode()) > MAX_CALLBACK_BYTES:
-        raise ValueError(f"callback_data exceeds {MAX_CALLBACK_BYTES} bytes: {data}")
+     raise ValueError(f"callback_data too long for Telegram: {data!r}")
     return data
 
 

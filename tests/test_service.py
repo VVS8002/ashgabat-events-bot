@@ -16,6 +16,7 @@ TODAY = date(2026, 10, 8)
 class FakeFeed:
     def __init__(self, events=None, stale=False, fail=False):
         self.events, self.stale, self.fail, self.calls = events or [], stale, fail, []
+        self.origin = "https://www.ashgabatevents.com"
 
     async def get_events(self, *, when=None, category=None):
         self.calls.append((when, category))

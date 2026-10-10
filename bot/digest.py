@@ -65,7 +65,7 @@ async def send_digest(
             await storage.mark_sent(chat_id, today)
         return 0
 
-    page = render_page(events, title=DIGEST_TITLE, stale=result.stale)
+    page = render_page(events, title=DIGEST_TITLE, stale=result.stale, site_origin=feed.origin)
     markup = pager_kb(scope_when("today"), page)
 
     sent = 0

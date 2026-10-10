@@ -49,6 +49,7 @@ class MockSession(BaseSession):
 class FakeFeed:
     def __init__(self):
         self.calls = []
+        self.origin = "https://www.ashgabatevents.com"
 
     async def get_events(self, *, when=None, category=None):
         self.calls.append((when, category))

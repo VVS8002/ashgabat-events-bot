@@ -21,6 +21,7 @@ NOW = datetime(2026, 10, 8, 9, 0, tzinfo=TZ)
 class FakeFeed:
     def __init__(self, events=None, fail=False):
         self.events, self.fail = events if events is not None else EVENTS, fail
+        self.origin = "https://www.ashgabatevents.com"
 
     async def get_events(self, *, when=None, category=None):
         if self.fail:

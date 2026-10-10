@@ -1,6 +1,7 @@
 """Клиент API заказчика: when/category, пагинация по cursor, одно событие на серию, кэш."""
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -8,11 +9,14 @@ from dataclasses import dataclass
 import httpx
 from pydantic import ValidationError
 
+from urllib.parse import urlsplit
+
 from .models import Event
 
 log = logging.getLogger(__name__)
 
 WHEN_VALUES = {"today", "tomorrow", "weekend", "week", "nextweek"}
+CATEGORY_RE = re.compile(r"^[a-z0-9_-]{1,40}$")  # тот же формат, что в bot/keyboards.py (SLUG_RE)
 MAX_RESPONSE_BYTES = 5 * 1024 * 1024  # 5 МБ макс. размер одного ответа от API
 MAX_CACHE_ENTRIES = 256  # ограничение размера кэша для защиты памяти
 DEFAULT_HEADERS = {
@@ -92,9 +96,21 @@ class FeedClient:
     async def aclose(self) -> None:
         await self._http.aclose()
 
+    @property
+    def origin(self) -> str:
+        """Схема + хост сайта, выведенные из feed_url. Используется рендером, чтобы не
+        доверять произвольным ссылкам из ленты (защита от подмены домена)."""
+        parts = urlsplit(self._url)
+        return f"{parts.scheme}://{parts.netloc}"
+
     async def get_events(self, *, when: str | None = None, category: str | None = None) -> FeedResult:
         if when is not None and when not in WHEN_VALUES:
             raise ValueError(f"unknown 'when': {when!r}")
+        if category is not None and not CATEGORY_RE.match(category):
+            # На практике сюда ничего постороннего не попадает: вызывающий код (keyboards.decode_page)
+            # уже проверяет формат. Проверяем повторно здесь, чтобы FeedClient был безопасен сам по
+            # себе — например, если его начнут вызывать из нового места без этой проверки.
+            raise ValueError(f"invalid category slug: {category!r}")
         key = (when, category)
         async with self._locks.setdefault(key, asyncio.Lock()):  # один запрос на ключ, а не на каждое нажатие
             cached = self._cache.get(key)
