@@ -163,3 +163,31 @@ def test_other_edit_errors_are_logged_but_do_not_crash_the_handler(caplog):
         calls, *_ = run(callback_update("menu"), session_cls=Gone)
     assert AnswerCallbackQuery in kinds(calls)
     assert any("failed to edit message" in r.getMessage() for r in caplog.records)
+
+
+def test_group_messages_are_ignored():
+    group_chat = Chat(id=-1001, type="supergroup")
+    msg = Message(message_id=1, date=NOW, chat=group_chat, from_user=USER, text="/start")
+    calls, *_ = run(Update(update_id=1, message=msg))
+    assert calls == []
+
+    other_msg = Message(message_id=2, date=NOW, chat=group_chat, from_user=USER, text="random text")
+    calls, *_ = run(Update(update_id=2, message=other_msg))
+    assert calls == []
+
+
+def test_callback_debounce():
+    async def go():
+        session, feed = MockSession(), FakeFeed()
+        bot = Bot("42:TEST", session=session)
+        async with Storage(":memory:") as storage:
+            dp = Dispatcher()
+            dp.include_router(create_router(feed, storage, TZ))
+            update = callback_update("cats")
+            await dp.feed_update(bot, update)
+            await dp.feed_update(bot, update)
+            return session.calls
+
+    calls = asyncio.run(go())
+    assert kinds(calls) == [AnswerCallbackQuery, EditMessageText, AnswerCallbackQuery]
+

@@ -1,4 +1,3 @@
-"""Точка входа: запуск Telegram-бота и планировщика дайджеста."""
 import asyncio
 import logging
 from datetime import datetime
@@ -18,7 +17,7 @@ from .storage import Storage
 
 log = logging.getLogger("events_bot")
 
-DIGEST_CHECK_MINUTES = 10  # как часто проверяем, не пора ли слать дайджест (см. send_digest)
+DIGEST_CHECK_MINUTES = 10
 
 
 async def main() -> None:
@@ -26,12 +25,10 @@ async def main() -> None:
     logging.basicConfig(level=settings.log_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     log.info("Starting bot")
 
-    # Прокси (если задан) нужен только для Telegram и только в разработке; сайт запрашиваем напрямую
     session = AiohttpSession(proxy=settings.proxy_url) if settings.proxy_url else AiohttpSession()
     bot = Bot(
         token=settings.bot_token.get_secret_value(),
         session=session,
-        # Ссылка в каждой карточке: без этого Telegram раздувает сообщения превью первой ссылки
         default=DefaultBotProperties(parse_mode=ParseMode.HTML, link_preview_is_disabled=True),
     )
     feed = FeedClient(settings.feed_url, ttl=settings.feed_ttl_seconds)
@@ -47,7 +44,7 @@ async def main() -> None:
                 IntervalTrigger(minutes=DIGEST_CHECK_MINUTES, timezone=settings.tz),
                 args=[bot, feed, storage, settings.tz],
                 kwargs={"digest_at": settings.digest_at},
-                next_run_time=datetime.now(settings.tz),  # проверка сразу при старте: догоняем после перезапуска
+                next_run_time=datetime.now(settings.tz),
                 max_instances=1,
                 coalesce=True,
                 name="daily_digest",
@@ -55,8 +52,9 @@ async def main() -> None:
             scheduler.start()
             log.info("Digest window opens at %s (%s)", settings.digest_time, settings.timezone_name)
 
-            # Не сбрасываем накопленные обновления: иначе /stop, нажатый пока бот был выключен, потеряется
             await dp.start_polling(bot)
+            if scheduler.running:
+                scheduler.shutdown(wait=True)
     finally:
         log.info("Shutting down")
         if scheduler.running:

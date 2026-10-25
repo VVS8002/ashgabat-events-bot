@@ -1,7 +1,7 @@
-"""Тексты карточек для Telegram (parse_mode=HTML). Весь текст из API экранируется."""
 import html
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from math import ceil
 from urllib.parse import urlsplit, urlunsplit
 
@@ -12,11 +12,9 @@ MAX_TITLE = 120
 MAX_VENUE = 100
 MAX_PRICE = 60
 MAX_DATE_LINE = 80
-MAX_RAW_URL = 2000  # дальше даже не парсим: явно мусор или атака
+MAX_RAW_URL = 512
+MAX_TELEGRAM_MESSAGE_CHARS = 4096
 
-# Опасные скрытые символы, символы изменения направления текста (BiDi override) и невидимые
-# символы-разделители, используемые для спуфинга текста и ссылок. U+200D (ZWJ) не трогаем:
-# он склеивает составные эмодзи (например, в названиях событий).
 DANGEROUS_CHARS = re.compile(
     r"[\u202a-\u202e\u2066-\u2069\x00-\x08\x0b\x0c\x0e-\x1f\u200b\u2060\ufeff]"
 )
@@ -32,24 +30,25 @@ WHEN_LABELS = {
     "nextweek": "Следующая неделя",
 }
 
-# Используется, только если вызывающий код не передал site_origin явно (production-код в
-# service.py и digest.py всегда передаёт его из FeedClient.origin, т.е. из настоящего FEED_URL).
 DEFAULT_SITE_ORIGIN = "https://www.ashgabatevents.com"
 
 
+@lru_cache(maxsize=32)
+def _split_url(url: str):
+    return urlsplit(url)
+
+
 def _esc(text: str) -> str:
-    return html.escape(text, quote=False)  # Telegram HTML: нужны только & < >
+    return html.escape(text, quote=False)
 
 
 def _cut(text: str, limit: int) -> str:
-    text = DANGEROUS_CHARS.sub("", text)  # удаляем скрытые и BiDi-символы
-    text = " ".join(text.split())  # схлопываем переводы строк и лишние пробелы
-    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+    cleaned = DANGEROUS_CHARS.sub("", text)
+    cleaned = " ".join(cleaned.split())
+    return cleaned if len(cleaned) <= limit else cleaned[: limit - 1].rstrip() + "…"
 
 
 def _when_line(e: Event) -> str:
-    # date_text/time_text приходят с сайта как есть: чистим и ограничиваем длину так же,
-    # как остальные текстовые поля, а не доверяем им как «служебным» строкам.
     date_part = _cut(e.date_text, MAX_DATE_LINE)
     if e.start_time_known and e.time_text:
         return f"{date_part}, {_cut(e.time_text, 30)}"
@@ -57,17 +56,13 @@ def _when_line(e: Event) -> str:
 
 
 def _safe_url(raw_url: str, site_origin: str) -> str:
-    """Ссылка «Подробнее на сайте» ведёт на страницу события у заказчика — и больше никуда.
-    Пропускаем только https-ссылки на тот же хост, что и site_origin; относительный путь
-    («/ru/events/...») достраиваем до site_origin. Всё остальное (javascript:, другой домен,
-    http без «s», мусор) заменяется ссылкой на главную сайта."""
     raw_url = raw_url.strip()[:MAX_RAW_URL]
     if raw_url.startswith("/"):
         raw_url = site_origin.rstrip("/") + raw_url
 
     try:
         parts = urlsplit(raw_url)
-        origin_parts = urlsplit(site_origin)
+        origin_parts = _split_url(site_origin)
     except ValueError:
         return site_origin
 
@@ -122,9 +117,16 @@ def render_page(
 
     per_page = max(1, per_page)
     pages = ceil(len(events) / per_page)
-    page = max(0, min(page, pages - 1))  # номер страницы из кнопки не доверяем слепо
+    page = max(0, min(page, pages - 1))
     chunk = events[page * per_page : (page + 1) * per_page]
 
     head += f"\nНайдено: {len(events)}" + (f" · стр. {page + 1}/{pages}" if pages > 1 else "")
-    parts = [head] + ([STALE_NOTE] if stale else []) + [render_event(e, site_origin=site_origin) for e in chunk]
+    parts = [head] + ([STALE_NOTE] if stale else [])
+    current_len = sum(len(p) + 2 for p in parts)
+    for e in chunk:
+        card = render_event(e, site_origin=site_origin)
+        if current_len + len(card) + 2 > MAX_TELEGRAM_MESSAGE_CHARS:
+            break
+        parts.append(card)
+        current_len += len(card) + 2
     return Page("\n\n".join(parts), page, pages)

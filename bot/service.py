@@ -1,4 +1,3 @@
-"""Сборка экранов бота: текст + клавиатура. Не зависит от обработчиков aiogram, поэтому легко тестируется."""
 import logging
 from dataclasses import dataclass
 from datetime import date
@@ -34,7 +33,7 @@ def menu_view(subscribed: bool) -> View:
 
 async def list_view(feed: FeedClient, scope: str, page: int, today: date) -> View:
     parsed = parse_scope(scope)
-    if parsed is None:  # через decode_page сюда не попасть, но проверка дешёвая
+    if parsed is None:
         return View(ERROR_TEXT, _menu_only_kb())
     when, category = parsed
     try:
@@ -54,7 +53,7 @@ async def list_view(feed: FeedClient, scope: str, page: int, today: date) -> Vie
 
 async def categories_view(feed: FeedClient) -> View:
     try:
-        result = await feed.get_events()  # все ближайшие события: из них собираем список категорий
+        result = await feed.get_events()
     except FeedUnavailable as exc:
         log.warning("feed unavailable: %s", exc)
         return View(ERROR_TEXT, _menu_only_kb())

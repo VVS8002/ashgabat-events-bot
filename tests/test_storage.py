@@ -49,10 +49,25 @@ def test_digest_is_sent_once_per_day():
             assert sorted(await s.due_for_digest(D1)) == [1, 2]
 
             await s.mark_sent(1, D1)
-            assert await s.due_for_digest(D1) == [2]  # после рестарта первому повторно не шлём
-            assert sorted(await s.due_for_digest(D2)) == [1, 2]  # на следующий день снова всем
+            assert await s.due_for_digest(D1) == [2]
+            assert sorted(await s.due_for_digest(D2)) == [1, 2]
 
     asyncio.run(run())
+
+
+def test_mark_sent_many():
+    async def run():
+        async with Storage(":memory:") as s:
+            await s.subscribe(1)
+            await s.subscribe(2)
+            await s.subscribe(3)
+            await s.mark_sent_many([1, 2], D1)
+            assert await s.due_for_digest(D1) == [3]
+            await s.mark_sent_many([], D1)
+            assert await s.due_for_digest(D1) == [3]
+
+    asyncio.run(run())
+
 
 
 def test_data_survives_restart(tmp_path):

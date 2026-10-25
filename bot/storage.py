@@ -1,4 +1,3 @@
-"""Подписчики дайджеста. Храним только chat_id и дату последней рассылки, переписку не храним."""
 from datetime import date
 from pathlib import Path
 
@@ -52,14 +51,12 @@ class Storage:
         return self._db
 
     async def subscribe(self, chat_id: int) -> bool:
-        """True, если подписчик новый; повторная подписка ничего не меняет."""
         _check_chat_id(chat_id)
         cur = await self.db.execute("INSERT OR IGNORE INTO subscribers (chat_id) VALUES (?)", (chat_id,))
         await self.db.commit()
         return cur.rowcount == 1
 
     async def unsubscribe(self, chat_id: int) -> bool:
-        """Удаляет строку целиком. True, если подписчик был."""
         _check_chat_id(chat_id)
         cur = await self.db.execute("DELETE FROM subscribers WHERE chat_id = ?", (chat_id,))
         await self.db.commit()
@@ -71,7 +68,6 @@ class Storage:
         return await cur.fetchone() is not None
 
     async def due_for_digest(self, today: date) -> list[int]:
-        """Кому сегодня ещё не отправляли (защита от повторной рассылки после перезапуска)."""
         cur = await self.db.execute(
             "SELECT chat_id FROM subscribers WHERE last_sent_date IS NULL OR last_sent_date < ?",
             (today.isoformat(),),
@@ -81,6 +77,14 @@ class Storage:
     async def mark_sent(self, chat_id: int, today: date) -> None:
         _check_chat_id(chat_id)
         await self.db.execute("UPDATE subscribers SET last_sent_date = ? WHERE chat_id = ?", (today.isoformat(), chat_id))
+        await self.db.commit()
+
+    async def mark_sent_many(self, chat_ids: list[int] | set[int], today: date) -> None:
+        if not chat_ids:
+            return
+        iso = today.isoformat()
+        params = [(iso, _check_chat_id(cid)) for cid in chat_ids]
+        await self.db.executemany("UPDATE subscribers SET last_sent_date = ? WHERE chat_id = ?", params)
         await self.db.commit()
 
     async def count(self) -> int:

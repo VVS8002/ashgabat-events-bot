@@ -1,4 +1,3 @@
-"""Настройки из переменных окружения / файла .env."""
 from datetime import time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -9,15 +8,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    bot_token: SecretStr  # токен не попадёт в логи и repr
+    bot_token: SecretStr
     feed_url: str = "https://www.ashgabatevents.com/api/public/v1/events"
-    # Не называем TZ: это зарезервированная переменная ОС, на сервере там часто UTC
     timezone_name: str = "Asia/Ashgabat"
-    digest_time: str = "09:00"  # локальное время дайджеста, HH:MM
+    digest_time: str = "09:00"
     feed_ttl_seconds: int = 300
     db_path: str = "data/bot.sqlite3"
     log_level: str = "INFO"
-    proxy_url: str | None = None  # для разработки, если api.telegram.org недоступен напрямую
+    proxy_url: str | None = None
 
     @field_validator("bot_token", mode="before")
     @classmethod
@@ -30,15 +28,15 @@ class Settings(BaseSettings):
     @classmethod
     def _known_timezone(cls, v: str) -> str:
         try:
-            ZoneInfo(v)  # упадёт сразу при старте, а не в 9 утра
-        except (ZoneInfoNotFoundError, ValueError) as exc:  # первый наследует KeyError, pydantic его не ловит
+            ZoneInfo(v)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone: {v}") from exc
         return v
 
     @field_validator("digest_time")
     @classmethod
     def _valid_digest_time(cls, v: str) -> str:
-        time.fromisoformat(v)  # ожидаем HH:MM
+        time.fromisoformat(v)
         return v
 
     @field_validator("feed_ttl_seconds")

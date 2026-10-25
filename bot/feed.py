@@ -1,24 +1,23 @@
-"""Клиент API заказчика: when/category, пагинация по cursor, одно событие на серию, кэш."""
 import asyncio
+import json
 import logging
 import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import ValidationError
-
-from urllib.parse import urlsplit
 
 from .models import Event
 
 log = logging.getLogger(__name__)
 
 WHEN_VALUES = {"today", "tomorrow", "weekend", "week", "nextweek"}
-CATEGORY_RE = re.compile(r"^[a-z0-9_-]{1,40}$")  # тот же формат, что в bot/keyboards.py (SLUG_RE)
-MAX_RESPONSE_BYTES = 5 * 1024 * 1024  # 5 МБ макс. размер одного ответа от API
-MAX_CACHE_ENTRIES = 256  # ограничение размера кэша для защиты памяти
+CATEGORY_RE = re.compile(r"^[a-z0-9_-]{1,40}$")
+MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+MAX_CACHE_ENTRIES = 256
 DEFAULT_HEADERS = {
     "User-Agent": "AshgabatEventsBot/1.0 (+https://www.ashgabatevents.com)",
     "Accept": "application/json",
@@ -26,17 +25,16 @@ DEFAULT_HEADERS = {
 
 
 class FeedUnavailable(Exception):
-    """Сайт недоступен и в кэше для этого запроса пусто."""
+    pass
 
 
 @dataclass(frozen=True)
 class FeedResult:
     events: list[Event]
-    stale: bool  # True = показываем кэш, потому что свежие данные получить не удалось
+    stale: bool
 
 
 def parse_page(raw) -> tuple[list[Event], str | None]:
-    """Одна страница ответа -> (события, next_cursor). Битые события пропускаются."""
     if not isinstance(raw, dict) or not isinstance(raw.get("events"), list):
         raise ValueError("unexpected feed shape")
     events: list[Event] = []
@@ -47,11 +45,12 @@ def parse_page(raw) -> tuple[list[Event], str | None]:
             ident = item.get("id") if isinstance(item, dict) else None
             msg = exc.errors()[0].get("msg", str(exc)) if exc.errors() else str(exc)
             log.warning("skip invalid event id=%s: %s", ident, msg)
-    return events, raw.get("next_cursor")
+    raw_cursor = raw.get("next_cursor")
+    cursor = str(raw_cursor).strip() if isinstance(raw_cursor, str | int) and str(raw_cursor).strip() else None
+    return events, cursor
 
 
 def first_of_series(events: list[Event]) -> list[Event]:
-    """У повторяющихся событий общий series_key: оставляем только первое из серии."""
     seen: set[str] = set()
     out: list[Event] = []
     for e in events:
@@ -81,7 +80,7 @@ class FeedClient:
         self._max_pages, self._ttl, self._clock = max_pages, ttl, clock
         self._http = http or httpx.AsyncClient(
             timeout=15.0,
-            follow_redirects=True,
+            follow_redirects=False,
             headers=DEFAULT_HEADERS,
         )
         self._cache: dict[tuple, tuple[list[Event], float]] = {}
@@ -98,8 +97,6 @@ class FeedClient:
 
     @property
     def origin(self) -> str:
-        """Схема + хост сайта, выведенные из feed_url. Используется рендером, чтобы не
-        доверять произвольным ссылкам из ленты (защита от подмены домена)."""
         parts = urlsplit(self._url)
         return f"{parts.scheme}://{parts.netloc}"
 
@@ -107,28 +104,30 @@ class FeedClient:
         if when is not None and when not in WHEN_VALUES:
             raise ValueError(f"unknown 'when': {when!r}")
         if category is not None and not CATEGORY_RE.match(category):
-            # На практике сюда ничего постороннего не попадает: вызывающий код (keyboards.decode_page)
-            # уже проверяет формат. Проверяем повторно здесь, чтобы FeedClient был безопасен сам по
-            # себе — например, если его начнут вызывать из нового места без этой проверки.
             raise ValueError(f"invalid category slug: {category!r}")
         key = (when, category)
-        async with self._locks.setdefault(key, asyncio.Lock()):  # один запрос на ключ, а не на каждое нажатие
-            cached = self._cache.get(key)
-            if cached and self._clock() - cached[1] < self._ttl:
-                return FeedResult(cached[0], stale=False)
-            try:
-                events = await self._fetch_all(when, category)
-            except Exception as exc:  # сеть, HTTP-статус, не-JSON, неверная форма
-                if cached:
-                    log.warning("feed refresh failed (%s); serving stale cache", exc)
-                    return FeedResult(cached[0], stale=True)
-                raise FeedUnavailable(str(exc)) from exc
-            if len(self._cache) >= MAX_CACHE_ENTRIES and key not in self._cache:
-                oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
-                self._cache.pop(oldest_key, None)
-                self._locks.pop(oldest_key, None)
-            self._cache[key] = (events, self._clock())
-            return FeedResult(events, stale=False)
+        lock = self._locks.setdefault(key, asyncio.Lock())
+        try:
+            async with lock:
+                cached = self._cache.get(key)
+                if cached and self._clock() - cached[1] < self._ttl:
+                    return FeedResult(cached[0], stale=False)
+                try:
+                    events = await self._fetch_all(when, category)
+                except Exception as exc:
+                    if cached:
+                        log.warning("feed refresh failed (%s); serving stale cache", exc)
+                        return FeedResult(cached[0], stale=True)
+                    raise FeedUnavailable(str(exc)) from exc
+                if len(self._cache) >= MAX_CACHE_ENTRIES and key not in self._cache:
+                    oldest_key = next(iter(self._cache))
+                    self._cache.pop(oldest_key, None)
+                    self._locks.pop(oldest_key, None)
+                self._cache[key] = (events, self._clock())
+                return FeedResult(events, stale=False)
+        finally:
+            if key in self._locks and not self._locks[key].locked():
+                self._locks.pop(key, None)
 
     async def _fetch_all(self, when: str | None, category: str | None) -> list[Event]:
         params: dict[str, str | int] = {}
@@ -144,11 +143,17 @@ class FeedClient:
         seen_cursors: set[str] = set()
         for _ in range(self._max_pages):
             query = {**params, **({"cursor": cursor} if cursor else {})}
-            resp = await self._http.get(self._url, params=query)
-            resp.raise_for_status()
-            if len(resp.content) > MAX_RESPONSE_BYTES:
-                raise ValueError("feed response payload exceeded maximum allowed size")
-            page, cursor = parse_page(resp.json())
+            async with self._http.stream("GET", self._url, params=query, follow_redirects=False) as resp:
+                resp.raise_for_status()
+                chunks: list[bytes] = []
+                total = 0
+                async for chunk in resp.aiter_bytes():
+                    total += len(chunk)
+                    if total > MAX_RESPONSE_BYTES:
+                        raise ValueError("feed response payload exceeded maximum allowed size")
+                    chunks.append(chunk)
+                body = b"".join(chunks)
+            page, cursor = parse_page(json.loads(body))
             events.extend(page)
             if not cursor:
                 break

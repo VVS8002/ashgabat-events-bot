@@ -1,5 +1,11 @@
 .venv/
+venv/
+v/
 .env
 __pycache__/
+*.pyc
+*.pyo
 .pytest_cache/
-data/*.sqlite3
+data/
+*.sqlite3
+try_feed.py

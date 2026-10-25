@@ -1,4 +1,3 @@
-"""Клавиатуры и коды callback_data. Лимит Telegram на callback_data: 64 байта."""
 import re
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -7,13 +6,14 @@ from .feed import WHEN_VALUES
 from .models import Category
 from .render import WHEN_LABELS, Page
 
-SLUG_RE = re.compile(r"^[a-z0-9_-]{1,40}$")  # данные из callback приходят от пользователя: не доверяем
+SLUG_RE = re.compile(r"^[a-z0-9_-]{1,40}$")
 MAX_CALLBACK_BYTES = 64
 
 MENU = "menu"
 CATEGORIES = "cats"
 SUBSCRIBE = "sub"
 UNSUBSCRIBE = "unsub"
+MAX_PAGE_NUMBER = 10_000
 
 
 def scope_when(when: str) -> str:
@@ -25,7 +25,6 @@ def scope_category(slug: str) -> str:
 
 
 def parse_scope(scope: str) -> tuple[str | None, str | None] | None:
-    """'w.today' -> ('today', None); 'c.education' -> (None, 'education'); мусор -> None."""
     kind, _, value = scope.partition(".")
     if kind == "w" and value in WHEN_VALUES:
         return value, None
@@ -37,11 +36,8 @@ def parse_scope(scope: str) -> tuple[str | None, str | None] | None:
 def encode_page(scope: str, page: int) -> str:
     data = f"l:{scope}:{page}"
     if len(data.encode()) > MAX_CALLBACK_BYTES:
-     raise ValueError(f"callback_data too long for Telegram: {data!r}")
+        raise ValueError(f"callback_data too long for Telegram: {data!r}")
     return data
-
-
-MAX_PAGE_NUMBER = 10_000
 
 
 def decode_page(data: str) -> tuple[str, int] | None:
@@ -75,7 +71,7 @@ def menu_kb(subscribed: bool) -> InlineKeyboardMarkup:
 def categories_kb(categories: list[Category]) -> InlineKeyboardMarkup:
     buttons = [
         _btn(c.label, encode_page(scope_category(c.slug), 0))
-        for c in categories if SLUG_RE.match(c.slug)  # такую категорию в callback не закодировать
+        for c in categories if SLUG_RE.match(c.slug)
     ]
     rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
     rows.append([_btn("🏠 Меню", MENU)])

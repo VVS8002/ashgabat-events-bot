@@ -1,4 +1,3 @@
-"""Модели под реальный ответ API заказчика (см. tests/fixtures/events.json)."""
 from datetime import date, datetime
 from typing import Annotated
 
@@ -6,7 +5,6 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
 
 def _parse_when(v):
-    """'2026-10-01' -> date (время не указано); '2026-10-12T16:00:00+05:00' -> datetime."""
     if isinstance(v, str):
         v = v.strip()
         return date.fromisoformat(v) if len(v) == 10 else datetime.fromisoformat(v)
@@ -32,11 +30,11 @@ class Price(BaseModel):
     is_free: bool = False
     amount: float | None = None
     currency: str | None = None
-    text: str  # готовая строка для показа: «Бесплатно», «30 TMT», «Платно»
+    text: str
 
 
 class Event(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # лишние поля API 
+    model_config = ConfigDict(extra="ignore")
 
     id: str
     title: str
@@ -46,8 +44,8 @@ class Event(BaseModel):
     start_time_known: bool = True
     end: When | None = None
     end_time_known: bool | None = None
-    date_text: str  # готовая строка: «сб, 10 окт. 2026 г.»
-    time_text: str  # готовая строка: «14:00 - 16:00» / «Время не указано»
+    date_text: str
+    time_text: str
     venue: Venue | None = None
     category: Category
     price: Price | None = None
@@ -58,7 +56,6 @@ class Event(BaseModel):
 
     @model_validator(mode="after")
     def _timed_values_must_have_offset(self) -> "Event":
-        # datetime проверяем первым: он подкласс date
         for v in (self.start, self.end):
             if isinstance(v, datetime) and (v.tzinfo is None or v.utcoffset() is None):
                 raise ValueError("datetime must include a UTC offset")
